@@ -2,7 +2,7 @@ import streamlit as st, plotly.graph_objects as go
 import engine, llm
 
 st.set_page_config(page_title="Cliff Navigator", page_icon="📈", layout="wide")
-D = dict(hours=30, wage=22.0, kids=2, rent=2800, county="Alameda", raise_amt=4.0)
+D = dict(hours=30, wage=22.0, kids=2, rent=1900, county="Alameda", raise_amt=4.0)
 for k, v in D.items(): st.session_state.setdefault(k, v)
 st.session_state.setdefault("chat", [])
 st.session_state.setdefault("filled", set())   # profile fields captured (chat, persona, or manual edit)
@@ -93,7 +93,7 @@ if ready:
     facts.update(county=S.county, kids=S.kids, hours=S.hours, rent=S.rent, cliff_zones=cliffs, wages_are_hourly_usd=True,
                  programs=engine.program_report(df, S.wage, S.raise_amt))
 
-tab1, tab2, tab3 = st.tabs(["1️⃣ Tell your story", "2️⃣ See the cliff", "3️⃣ Next steps"])
+tab1, tab2, tab3 = st.tabs(["1️⃣ Tell your story", "2️⃣ Understand your income & benefits", "3️⃣ Next steps"])
 
 with tab1:
     st.markdown("**Start here.** Describe your situation in your own words. Everything in steps 2–3 is built from what you say.")
@@ -127,23 +127,37 @@ with tab2:
         elif facts["monthly_change"] < 0:
             st.warning("⚠️ This raise would leave you with less each month because benefits drop faster than pay rises. You're not imagining it. Step 3 helps you plan a number that clears this cliff.")
         st.subheader("📉 What the raise does")
-        c1, c2, c3 = st.columns(3)
+        c1, c2 = st.columns(2)
         c1.metric("Take-home now (monthly)", f"${facts['net_now']:,}")
         c2.metric(f"After +${S.raise_amt:g}/hr", f"${facts['net_after']:,}", f"{facts['monthly_change']:+,}")
-        c3.metric("Break-even wage", f"${facts['breakeven_wage']}/hr" if facts["breakeven_wage"] else "No cliff hit")
         fig = go.Figure(go.Scatter(x=df.wage, y=df.net_monthly, mode="lines", name="Net monthly resources", line=dict(width=3)))
-        for z in cliffs: fig.add_vrect(x0=z["start_wage"], x1=z["end_wage"], fillcolor="red", opacity=0.15, line_width=0,
-                                       annotation_text="cliff zone", annotation_position="top left")
+        for z in cliffs: fig.add_vrect(x0=z["start_wage"], x1=z["end_wage"], fillcolor="red", opacity=0.15, line_width=0)
         for x, lab in [(S.wage, "Now"), (S.wage + S.raise_amt, "With raise")]:
             fig.add_trace(go.Scatter(x=[x], y=[engine.net_at(df, x)], mode="markers+text", text=[lab], textposition="top center",
                                      marker=dict(size=12), showlegend=False))
-        fig.add_vline(x=min(LIVING_WAGE[S.county], 70), line_dash="dot", annotation_text="Living wage (placeholder)")
-        fig.update_layout(xaxis_title="Hourly wage ($)", yaxis_title="Monthly net resources ($)", height=480)
-        st.plotly_chart(fig, use_container_width=True)
+        fig.add_vline(x=min(LIVING_WAGE[S.county], 70), line_dash="dot")
+        fig.update_layout(xaxis_title="Hourly wage ($)", yaxis_title="Monthly net resources ($)", height=480, margin=dict(t=20))
+        chart, legend = st.columns([3, 1.4])
+        chart.plotly_chart(fig, use_container_width=True)
+        with legend:
+            st.markdown("#### 🔎 How to read this")
+            st.markdown("**Blue line**: money your household has each month (pay + benefits + credits − taxes) at each hourly wage.")
+            st.markdown(f"**● Now (${S.wage:g}/hr)**: ${facts['net_now']:,}/mo  \n**● With raise (${S.wage + S.raise_amt:g}/hr)**: ${facts['net_after']:,}/mo")
+            if cliffs:
+                st.markdown("**🟥 Red zone = a cliff.** Earning more *here* leaves you with *less* each month, because benefits drop faster than pay rises.")
+                for z in cliffs:
+                    now_in = z["start_wage"] <= S.wage <= z["end_wage"]
+                    after_in = z["start_wage"] <= S.wage + S.raise_amt <= z["end_wage"]
+                    st.markdown(f"- From **${z['start_wage']:.2f}** to **${z['end_wage']:.2f}/hr**, you could lose up to **${z['max_loss']:,.0f}/mo**. You're back ahead at **${z['breakeven_wage']:.2f}/hr**." if z["breakeven_wage"] else f"- From **${z['start_wage']:.2f}/hr** up, you could lose up to **${z['max_loss']:,.0f}/mo**.")
+                    if now_in and not after_in: st.success("You're **in** this zone now. This raise takes you **past** it. 🎉")
+                    elif now_in and after_in: st.warning("You're **in** this zone, and this raise leaves you **still inside** it. Aim higher; see step 3.")
+                    elif after_in: st.warning("This raise would move you **into** the zone, so you'd take home less. Aim past the zone; see step 3.")
+                    elif S.wage > z["end_wage"]: st.info("You're already **past** this zone.")
+                    else: st.info("This zone is **above** your raise; a later raise could cross it.")
+            else:
+                st.success("**No red zone for your situation.** Every raise leaves you ahead.")
+            st.markdown("**┆ Dotted line**: living wage (placeholder figure)")
         st.caption(f"Engine: {df.attrs['source']}. Verify thresholds with official sources (benefitscal.com, county office).")
-        if st.button("Explain this in plain language"):
-            with st.spinner("Writing your explanation…"):
-                st.write(llm.explain(facts, lang))
 
 with tab3:
     if gate(3):

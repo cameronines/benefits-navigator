@@ -1,6 +1,6 @@
 # Benefits Cliff Navigator
 
-A Streamlit demo that helps Bay Area single parents answer: **"Will this raise actually help me?"**
+A Streamlit demo that helps Bay Area women answer: **"Will this raise actually help me?"**
 
 When pay rises, benefits like CalFresh and the EITC shrink. Sometimes they shrink faster than pay grows, so take-home money goes *down*. This is the "benefits cliff". The app finds it, explains it in plain language, and helps the user plan what to do next.
 
