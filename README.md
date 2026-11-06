@@ -26,7 +26,7 @@ Optional: `CLAUDE_MODEL` overrides the model (default `claude-sonnet-5-5`).
 
 1. **Tell your story**: the user describes their situation in plain language. Claude extracts facts (hours, wage, kids, rent, county, raise offered) through a tool call (`update_profile`). A left-hand profile panel fills in card by card with a flash animation. Steps 2-3 stay locked until all six facts are captured.
    - Fastest path for a demo: the **"Load persona: Maria (Oakland)"** button fills everything.
-2. **See the cliff**: shows the programs the household likely qualifies for now (with annual dollar amounts and how each changes after the raise), the take-home before and after the raise, the break-even wage, and a chart of net monthly resources across wages with cliff zones shaded red.
+2. **Understand your income & benefits**: shows the programs the household likely qualifies for now (cards with annual dollar amounts, how each changes after the raise, and a link to the official page), the take-home before and after the raise, and a chart of net monthly resources across wages with cliff zones shaded. A legend beside the chart explains the user's own situation (inside, past or approaching a cliff) using engine numbers only, not Claude. A "Sources & methodology" section sits at the bottom.
 3. **Next steps**:
    - **Plan your raise**: the user enters their job. The app web-searches market pay for similar roles and suggests a target hourly wage. Claude then writes a negotiation script around it.
    - **Get help with other next steps**: the user picks tasks (report income change, claim tax credits, childcare, Medi-Cal, gather documents) and Claude walks them through each.
@@ -60,6 +60,19 @@ Optional: `CLAUDE_MODEL` overrides the model (default `claude-sonnet-5-5`).
 - **`LIVING_WAGE`** in `app.py`: made-up placeholder values for the dotted line on the chart. Replace with MIT Living Wage figures or remove.
 - **Program blurbs** (`ABOUT` in `app.py`): general plain-language descriptions I wrote. Not sourced. Skim before presenting.
 
+### Sources shown in the app
+The app links to these so users and judges can check the work. Links were tested with a script; three (BenefitsCal, the FCC Lifeline page, Santa Clara County) returned 403 to the script, which looks like bot-blocking, so click them once before demoing.
+
+| Where | Source |
+|---|---|
+| Benefit cards | IRS (EITC, CTC), California Franchise Tax Board (CalEITC, Young Child Tax Credit), CDSS (CalFresh, CalWORKs), California Dept. of Education (school meals), FCC (Lifeline) |
+| Methodology section | PolicyEngine-US on GitHub; 26 U.S.C. §32; 7 U.S.C. §2014; IRS Rev. Proc. 2025-32; Atlanta Fed CLIFF research; BenefitsCal; GetCalFresh |
+| Chart legend | Atlanta Fed CLIFF research (a research page on cliff dashboards, not a beginner explainer); MIT Living Wage Calculator (next to the placeholder line) |
+| Step 3 | County office (SF HSA, Alameda County Social Services, Santa Clara County), BenefitsCal, CDSS report-changes page, Medi-Cal, WIC |
+| Market pay | Source URLs returned by the web search, shown as clickable domains (not vetted by us) |
+
+The statutes and Rev. Proc. are the sources PolicyEngine cites for its parameters. They back the model's inputs, not a line-by-line check of every output.
+
 ## Modeling assumptions and limits
 
 - **County doesn't change the benefit math.** The engine hardcodes California; county only affects the living-wage line and the office Claude names.
@@ -75,10 +88,11 @@ Optional: `CLAUDE_MODEL` overrides the model (default `claude-sonnet-5-5`).
 - **Silent fallback, loud label.** The engine never crashes the demo (falls back on any exception), but the active source is stored in `df.attrs["source"]` and displayed under the chart.
 - **Chat updates apply before widgets exist.** Streamlit forbids setting a widget's state after it's created, so chat results are stored in `S.pending` and applied at the top of `app.py` on the next rerun.
 - **Positive framing.** Step 2 leads with the support the household already qualifies for ("you've earned this"), then the raise impact, with different messages for a net gain versus a net loss.
-- **Spinners on every Claude button** so slow calls don't look frozen. The simulation result is cached on `(hours, kids, rent, county)`; the first run takes about 20 seconds.
+- **Loading states.** Every Claude button shows a spinner. The tax-benefit simulation shows a large animated loader (the cliff line drawing itself) only when inputs changed, since it can take about 20 seconds. The result is cached on `(hours, kids, rent, county)`, so re-entering the same values may flash the loader briefly.
+- **Design.** Colors come from Anthropic's public site stylesheets: ivory `#faf9f5`, warm gray `#f0eee6`, near-black `#141413`, clay `#d97757`, plus olive, sky and fig accents. Anthropic's own fonts are proprietary, so the app uses free lookalikes from Google Fonts (Source Serif 4 for headings, Inter for body text). The theme lives in `.streamlit/config.toml` plus a CSS block at the top of `app.py`. The banner art is original inline SVG. This is inspired by their look, not official Anthropic branding.
 
 ## Ideas to strengthen credibility
 
-1. Add a "Where do these numbers come from?" expander in step 2 listing each program and its statute or agency page.
-2. Replace the living-wage placeholder and use the kid ages the user gives.
-3. Cross-check one persona against benefitscal.com and report how close the estimates are.
+1. Replace the living-wage placeholder with MIT figures and use the kid ages the user gives.
+2. Cross-check one persona against benefitscal.com and report how close the estimates are.
+3. Find a plainer cliff explainer than the Atlanta Fed research page for the legend link.
