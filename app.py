@@ -21,6 +21,22 @@ ABOUT = {"CalFresh (SNAP)": "Monthly food money on an EBT card, so groceries str
          "Free/reduced school meals": "Free or cheaper breakfast and lunch at school for your kids.",
          "Lifeline phone/internet discount": "A monthly discount on your phone or internet bill."}
 
+def A(label, url, cls=""):
+    return f'<a class="{cls}" href="{url}" target="_blank" rel="noopener noreferrer">{label} ↗</a>'
+
+PROGRAM_LINKS = {
+    "CalFresh (SNAP)": "https://www.cdss.ca.gov/inforesources/calfresh",
+    "Federal EITC": "https://www.irs.gov/credits-deductions/individuals/earned-income-tax-credit-eitc",
+    "CalEITC": "https://www.ftb.ca.gov/file/personal/credits/california-earned-income-tax-credit.html",
+    "Child Tax Credit": "https://www.irs.gov/credits-deductions/individuals/child-tax-credit",
+    "CA Young Child Tax Credit": "https://www.ftb.ca.gov/file/personal/credits/young-child-tax-credit.html",
+    "CalWORKs (TANF)": "https://www.cdss.ca.gov/calworks",
+    "Free/reduced school meals": "https://www.cde.ca.gov/ls/nu/sn/",
+    "Lifeline phone/internet discount": "https://www.fcc.gov/lifeline-consumers"}
+COUNTY_OFFICE = {"San Francisco": ("SF Human Services Agency", "https://www.sfhsa.org"),
+                 "Alameda": ("Alameda County Social Services", "https://socialservices.alamedacountyca.gov/index.page"),
+                 "Santa Clara": ("Santa Clara County", "https://www.sccgov.org")}
+
 def mark(key): st.session_state.filled.add(key)
 
 # apply chat-extracted updates before widgets are created
@@ -60,6 +76,24 @@ footer, #MainMenu {{ visibility: hidden; }}
 .pcard.new {{ animation: flash{n_flash} 1.8s ease-out; }}
 [data-testid="stMetric"] {{ background: #f0eee6; border-radius: 10px; padding: 12px 16px; }}
 [data-testid="stAlert"] {{ border-radius: 10px; }}
+[data-testid="stHeaderActionElements"], .stMarkdown h1 a, .stMarkdown h2 a, .stMarkdown h3 a, .stMarkdown h4 a {{ display: none !important; }}
+.simload {{ background: #f0eee6; border-radius: 16px; padding: 36px 24px 30px; text-align: center; margin: 0.4rem 0 1.4rem; }}
+.simload svg {{ width: min(420px, 90%); height: auto; }}
+.simload .t {{ font-family: 'Source Serif 4', Georgia, serif; font-size: 1.6rem; font-weight: 600; margin-top: 8px; }}
+.simload .s {{ color: #5e5d59; font-size: 0.95rem; margin-top: 4px; }}
+.sim-line {{ stroke-dasharray: 1; stroke-dashoffset: 1; animation: simdraw 2.6s ease-in-out infinite; }}
+@keyframes simdraw {{ 0% {{ stroke-dashoffset: 1; }} 70% {{ stroke-dashoffset: 0; }} 100% {{ stroke-dashoffset: 0; opacity: 0; }} }}
+.sim-dot {{ transform-box: fill-box; transform-origin: center; animation: simpulse 1.6s ease-in-out infinite; }}
+.sim-dot.d2 {{ animation-delay: .35s; }} .sim-dot.d3 {{ animation-delay: .7s; }} .sim-dot.d4 {{ animation-delay: 1.05s; }}
+@keyframes simpulse {{ 0%, 100% {{ transform: scale(1); opacity: .9; }} 50% {{ transform: scale(1.18); opacity: 1; }} }}
+.src {{ font-size: 0.8rem; font-weight: 500; color: #141413 !important; text-decoration: none !important; border-bottom: 1px solid #d97757; white-space: nowrap; }}
+.src:hover {{ color: #c4553a !important; }}
+.pcardx > .src {{ display: inline-block; margin-top: 10px; }}
+.srcgrid ul {{ padding-left: 1.1rem; margin: 8px 0 0; }} .srcgrid li {{ font-size: 0.88rem; margin: 5px 0; color: #3d3d3a; }}
+.srcgrid li a {{ color: #141413; text-decoration: underline; text-decoration-color: #d97757; text-underline-offset: 3px; }}
+.srcgrid li a:hover {{ color: #c4553a; }}
+.foot {{ margin-top: 40px; padding-top: 14px; border-top: 1px solid #d1cfc5; font-size: 0.8rem; color: #87867f; }}
+.foot a {{ color: #5e5d59; }}
 .block-container {{ padding-top: 2.2rem; max-width: 1200px; }}
 .eyebrow {{ font-size: 0.72rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #87867f; margin: 6px 0 4px; }}
 .banner {{ position: relative; overflow: hidden; background: #f0eee6; border-radius: 16px; margin: 0 0 1.6rem; min-height: 220px; }}
@@ -122,10 +156,30 @@ with st.sidebar:
 
 ready = {f[0] for f in FIELDS} <= S.filled
 
-@st.cache_data(show_spinner="Running benefit simulation…")
+@st.cache_data(show_spinner=False)
 def run(hours, kids, rent, county):
     p = dict(hours=hours, kid_ages=[4, 7, 10, 13][:kids], rent=rent, county=county, max_wage=70)
     df = engine.sweep(p); return df, engine.find_cliffs(df)
+
+LOADER = """<div class="simload">
+<svg viewBox="0 0 420 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <circle class="sim-dot" cx="320" cy="48" r="38" fill="#d97757"/>
+  <circle class="sim-dot d2" cx="378" cy="108" r="28" fill="#6a9bcc"/>
+  <path class="sim-dot d3" d="M190 150 A38 38 0 0 1 266 150 Z" fill="#788c5d"/>
+  <circle class="sim-dot d4" cx="240" cy="40" r="12" fill="#c46686"/>
+  <path class="sim-line" pathLength="1" d="M20 120 C70 116 100 96 130 74 L170 70 L184 118 C210 122 240 92 280 66 C310 46 345 56 400 22"
+        fill="none" stroke="#141413" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+<div class="t">Running your benefits simulation</div>
+<div class="s">Working out taxes, credits and benefits at every wage. This can take about 20 seconds the first time.</div>
+</div>"""
+
+def run_with_loader(*args):
+    """Show the large themed loader only when the inputs changed (i.e. the simulation likely recomputes)."""
+    if S.get("_simkey") == args: return run(*args)
+    ph = st.empty(); ph.markdown(LOADER, unsafe_allow_html=True)
+    try: return run(*args)
+    finally: ph.empty(); S["_simkey"] = args
 
 def gate(step):
     """Return True if the conversation is complete; otherwise show a lock message."""
@@ -137,15 +191,15 @@ def gate(step):
     return ready
 
 if ready:
-    df, cliffs = run(S.hours, S.kids, S.rent, S.county)
+    df, cliffs = run_with_loader(S.hours, S.kids, S.rent, S.county)
     facts = engine.raise_report(df, S.wage, S.raise_amt)
     facts.update(county=S.county, kids=S.kids, hours=S.hours, rent=S.rent, cliff_zones=cliffs, wages_are_hourly_usd=True,
                  programs=engine.program_report(df, S.wage, S.raise_amt))
 
-tab1, tab2, tab3 = st.tabs(["1. Tell your story", "2. Understand your income & benefits", "3. Next steps"])
+tab1, tab2, tab3 = st.tabs(["1. Tell us about you", "2. Understand your income & benefits", "3. Next steps"])
 
 with tab1:
-    eyebrow(1, "Tell your story")
+    eyebrow(1, "Tell us about you")
     st.markdown("**Start here.** Describe your situation in your own words. Everything in steps 2–3 is built from what you say.")
     for m in S.chat:
         st.chat_message(m["role"]).write(m["content"])
@@ -171,7 +225,7 @@ with tab2:
                 d = y - x
                 dl = ('<span class="dl flat">No change with raise</span>' if d == 0 else
                       f'<span class="dl {"up" if d > 0 else "down"}">{"+" if d > 0 else "−"}&#36;{abs(d):,} / yr after raise</span>')
-                cells.append(f'<div class="pcardx"><div class="nm">{name}</div><div class="amt">&#36;{x:,}<span style="font-size:.85rem;font-weight:400;color:#87867f"> / yr</span></div>{dl}<div class="ab">{ABOUT.get(name, "")}</div></div>')
+                cells.append(f'<div class="pcardx"><div class="nm">{name}</div><div class="amt">&#36;{x:,}<span style="font-size:.85rem;font-weight:400;color:#87867f"> / yr</span></div>{dl}<div class="ab">{ABOUT.get(name, "")}</div>{A("Official page", PROGRAM_LINKS[name], "src") if name in PROGRAM_LINKS else ""}</div>')
             st.markdown('<div class="cardgrid">' + "".join(cells) + '</div>', unsafe_allow_html=True)
             st.caption("Estimates from the tax-benefit model. Also worth checking (not calculated here): Medi-Cal, WIC, childcare help, housing help.")
         else:
@@ -201,6 +255,7 @@ with tab2:
             st.markdown(f"**● Now (${S.wage:g}/hr)**: ${facts['net_now']:,}/mo  \n**● With raise (${S.wage + S.raise_amt:g}/hr)**: ${facts['net_after']:,}/mo")
             if cliffs:
                 st.markdown("**Shaded zone = a cliff.** Earning more *here* leaves you with *less* each month, because benefits drop faster than pay rises.")
+                st.markdown(A("About benefits cliffs", "https://www.atlantafed.org/research-and-data/publications/partners-update/2022/08/30/cliff-dashboard-evaluations-insights-from-three-state-pilots", "src"), unsafe_allow_html=True)
                 for z in cliffs:
                     now_in = z["start_wage"] <= S.wage <= z["end_wage"]
                     after_in = z["start_wage"] <= S.wage + S.raise_amt <= z["end_wage"]
@@ -212,8 +267,23 @@ with tab2:
                     else: st.info("This zone is **above** your raise; a later raise could cross it.")
             else:
                 st.success("**No shaded zone for your situation.** Every raise leaves you ahead.")
-            st.markdown("**Dotted line**: living wage (placeholder figure)")
+            st.markdown("**Dotted line**: living wage (placeholder figure; compare the " + A("MIT Living Wage Calculator", "https://livingwage.mit.edu/", "src") + ")", unsafe_allow_html=True)
         st.caption(f"Engine: {df.attrs['source']}. Verify thresholds with official sources (benefitscal.com, county office).")
+        st.markdown('<div class="eyebrow" style="margin-top:28px">Sources &amp; methodology</div>', unsafe_allow_html=True)
+        st.markdown('''<div class="cardgrid srcgrid">
+<div class="pcardx"><div class="nm">How the numbers are calculated</div><ul>
+<li>''' + A('PolicyEngine-US', 'https://github.com/PolicyEngine/policyengine-us') + ''', open-source tax and benefit model (2025 rules, California)</li>
+<li>''' + A('26 U.S.C. §32 (EITC)', 'https://www.law.cornell.edu/uscode/text/26/32') + '''</li>
+<li>''' + A('7 U.S.C. §2014 (SNAP)', 'https://www.law.cornell.edu/uscode/text/7/2014') + '''</li>
+<li>''' + A('IRS Rev. Proc. 2025-32', 'https://www.irs.gov/pub/irs-drop/rp-25-32.pdf') + ''', 2025 inflation adjustments</li></ul></div>
+<div class="pcardx"><div class="nm">Why cliffs happen</div><div class="ab">Many benefits phase out as income rises. When they shrink faster than pay grows, take-home money can fall.</div><ul>
+<li>''' + A('Atlanta Fed CLIFF research', 'https://www.atlantafed.org/research-and-data/publications/partners-update/2022/08/30/cliff-dashboard-evaluations-insights-from-three-state-pilots') + '''</li></ul></div>
+<div class="pcardx"><div class="nm">Check your own situation</div><ul>
+<li>''' + A('BenefitsCal', 'https://benefitscal.com') + ''', California's official application portal</li>
+<li>''' + A('GetCalFresh', 'https://www.getcalfresh.org/en/') + '''</li>
+<li>Your county office (see step 3)</li></ul></div>
+<div class="pcardx"><div class="nm">Known limits</div><div class="ab">These are estimates from a model, not eligibility decisions. County does not change the benefit math, kids are assumed to be ages 4, 7, 10 and 13, and the living-wage line is a placeholder.</div></div>
+</div>''', unsafe_allow_html=True)
 
 with tab3:
     eyebrow(3, "Next steps")
@@ -229,7 +299,9 @@ with tab3:
             target = max(mk["typical"], S.wage + S.raise_amt)
             st.metric("Suggested target ($/hr)", f"${target:,.2f}",
                       f"market range ${mk['low']:g}–${mk['high']:g} (typical ${mk['typical']:g}) for {mk['job']}")
-            st.caption("Estimate from web search: " + ", ".join(mk.get("sources", [])[:3]) + " · verify before you negotiate.")
+            from urllib.parse import urlparse
+            links = [A(urlparse(u).netloc.removeprefix("www."), u, "src") for u in mk.get("sources", [])[:3] if str(u).startswith(("http://", "https://"))]
+            st.markdown('<div class="ab" style="font-size:.86rem;color:#5e5d59">Estimate from web search' + (": " + " &nbsp;·&nbsp; ".join(links) if links else "") + ". Verify before you negotiate.</div>", unsafe_allow_html=True)
             facts.update(market_rate_usd_per_hr=dict(low=mk["low"], typical=mk["typical"], high=mk["high"]), suggested_target_usd_per_hr=target)
         elif mk:
             st.warning(mk.get("error") or "Couldn't find reliable market figures for that role; try a more common job title.")
@@ -237,6 +309,12 @@ with tab3:
             with st.spinner("Writing your negotiation script…"):
                 st.markdown(llm.negotiation_script(facts, lang))
         st.divider()
+        office = COUNTY_OFFICE[S.county]
+        st.markdown('<div class="eyebrow">Official places to act</div>', unsafe_allow_html=True)
+        st.markdown(" &nbsp;·&nbsp; ".join([A(office[0], office[1], "src"), A("Apply or check eligibility: BenefitsCal", "https://benefitscal.com", "src"),
+            A("Report CalFresh changes", "https://www.cdss.ca.gov/inforesources/calfresh/report-changes", "src"),
+            A("Medi-Cal", "https://www.dhcs.ca.gov/services/medi-cal", "src"),
+            A("WIC", "https://www.cdph.ca.gov/Programs/CFH/DWICSN/Pages/Program-Landing1.aspx", "src")]), unsafe_allow_html=True)
         st.subheader("Get help with other next steps")
         st.markdown("Pick any and we will walk you through them.")
         NEXT = {"report": "Report my income change to the county (CalFresh / Medi-Cal)",
@@ -248,3 +326,6 @@ with tab3:
         if st.button("Help me with these", disabled=not picks):
             with st.spinner("Preparing your next steps…"):
                 st.markdown(llm.next_steps(facts, lang, [NEXT[k] for k in picks]))
+
+st.markdown("<div class='foot'>Benefit calculations by " + A("PolicyEngine-US", "https://github.com/PolicyEngine/policyengine-us") + ". Explanations and scripts written by Claude from those results. "
+            "Synthetic data only. Estimates, not legal or eligibility advice. Confirm with " + A("BenefitsCal", "https://benefitscal.com") + " or your county office.</div>", unsafe_allow_html=True)
